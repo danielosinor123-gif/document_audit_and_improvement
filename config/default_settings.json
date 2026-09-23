@@ -1,0 +1,62 @@
+﻿{
+  "_comment": "Default settings for the Customer Analytics Tool. Generated from docs/product-overview.md core features. Every value matches the defaults hard-coded in data_processor.py and customer_analytics.py (see documents/decisions.md for the reasoning).",
+  "data_loading": {
+    "input_file": "sample_data.csv",
+    "supported_formats": ["csv", "xlsx"],
+    "required_columns": [
+      "customer_id",
+      "order_id",
+      "purchase_date",
+      "purchase_amount",
+      "product_category"
+    ]
+  },
+  "data_cleaning": {
+    "date_window": {
+      "start": "2020-01-01",
+      "end": "2024-12-31"
+    },
+    "min_purchase_amount": 0,
+    "outlier_column": "purchase_amount",
+    "outlier_iqr_multiplier": 1.5
+  },
+  "validation": {
+    "min_unique_customers": 10,
+    "min_date_range_days": 30,
+    "reject_non_positive_amounts": true,
+    "flag_duplicate_orders": true,
+    "duplicate_order_keys": ["customer_id", "order_id"]
+  },
+  "analytics": {
+    "clv": {
+      "months": 12,
+      "confidence_factor": 0.7
+    },
+    "segmentation": {
+      "tiers": ["high_value", "medium_value", "low_value"],
+      "medium_lower_quantile": 0.4,
+      "medium_upper_quantile": 0.8
+    },
+    "rfm": {
+      "reference_date": "2024-01-01",
+      "quintiles": 5
+    },
+    "churn": {
+      "high_risk_recency_days": 90,
+      "high_risk_max_frequency": 3,
+      "medium_risk_recency_days": 60,
+      "medium_risk_max_frequency": 5
+    }
+  },
+  "dashboard": {
+    "save_path": "customer_dashboard.png",
+    "dpi": 300,
+    "figure_size": [15, 10],
+    "panels": [
+      "clv_distribution",
+      "customer_segments",
+      "monthly_revenue_trend",
+      "churn_risk_distribution"
+    ]
+  }
+}
