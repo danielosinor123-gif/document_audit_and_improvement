@@ -1,3 +1,21 @@
+"""Data processing for the customer analytics project.
+
+CONTEXT BREADCRUMBS:
+- What this project does:        documents/product_overview.md
+- How the pieces fit together:   documents/technical_architecture.md
+- Why pandas/numpy/matplotlib:   documents/package_recommendations.md
+- Why outliers are filtered the  documents/decisions.md  (Decision 1)
+  way they are, and the
+  hard-coded cleaning window
+- Full code audit:               assessment_notes.md
+
+DataProcessor is the data-engineering half: it loads CSV/Excel purchase
+data, enforces the required schema, cleans and validates the records, and
+produces summary and per-customer rollups. CustomerAnalytics (in
+customer_analytics.py) builds its CLV/segmentation/churn analysis on top
+of the DataFrame this class returns.
+"""
+
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -6,6 +24,8 @@ warnings.filterwarnings('ignore')
 
 class DataProcessor:
     def __init__(self):
+        # Schema contract: every input file must contain these columns or
+        # load_data fails fast with a ValueError (see technical_architecture.md).
         self.required_columns = ['customer_id', 'order_id', 'purchase_date', 'purchase_amount', 'product_category']
         
     def load_data(self, file_path):
@@ -40,9 +60,16 @@ class DataProcessor:
         df['customer_id'] = df['customer_id'].astype(str)
         df['order_id'] = df['order_id'].astype(str)
         
+        # DECISION: hard-coded cleaning window - purchases outside 2020-2024
+        # are dropped silently (only the removed-row count reveals it).
+        # See documents/decisions.md and assessment_notes.md.
         df = df[df['purchase_date'] >= '2020-01-01']
         df = df[df['purchase_date'] <= '2024-12-31']
         
+        # DECISION 1 (documents/decisions.md): IQR outlier filter with the
+        # conventional 1.5x Tukey fence, applied only to purchase_amount -
+        # the only numeric field whose tail would distort downstream
+        # revenue/CLV numbers. Rows are removed silently.
         q1 = df['purchase_amount'].quantile(0.25)
         q3 = df['purchase_amount'].quantile(0.75)
         iqr = q3 - q1
@@ -61,6 +88,12 @@ class DataProcessor:
         return df.reset_index(drop=True)
     
     def validate_data(self, df):
+        """Five quality checks; prints warnings or a pass message.
+
+        Returns True only when no validation errors were found. Called
+        explicitly by consumers - load_data does not run it automatically
+        (see documents/technical_architecture.md for the data flow).
+        """
         validation_errors = []
         
         if df.empty:
@@ -90,6 +123,12 @@ class DataProcessor:
         return len(validation_errors) == 0
     
     def get_data_summary(self, df):
+        """Headline metrics dict: rows, uniques, date range, revenue.
+
+        Callers wanting per-customer rollups should use
+        create_customer_summary instead (currently unused in the main
+        flow - see assessment_notes.md).
+        """
         summary = {
             'total_rows': len(df),
             'unique_customers': len(df['customer_id'].unique()),
